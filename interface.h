@@ -61,6 +61,7 @@ struct in_ev {
   int refcnt;
   int error;
   int fd;
+  struct tgl_message_id message_id;
 };
 
 

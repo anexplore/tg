@@ -1480,7 +1480,7 @@ void do_ ## act ## _ ## tp (struct command *command, int arg_num, struct arg arg
   assert (arg_num == 1);\
   struct tgl_message *M = tgl_message_get (TLS, &args[0].msg_id);\
   if (M && !(M->flags & TGLMF_SERVICE)) {\
-    if (ev) { ev->refcnt ++; } \
+    if (ev) { ev->refcnt ++; ev->message_id = M->permanent_id; } \
     if (M->media.type == tgl_message_media_photo) { \
       tgl_do_load_photo (TLS, M->media.photo, actf, ev);\
     } else if (M->media.type == tgl_message_media_document) {\
@@ -2264,9 +2264,9 @@ void print_fail (struct in_ev *ev) {
   } else {
   #ifdef USE_JSON
     json_t *res = json_object ();
-    assert (json_object_set (res, "result", json_string ("FAIL")) >= 0);
-    assert (json_object_set (res, "error_code", json_integer (TLS->error_code)) >= 0);
-    assert (json_object_set (res, "error", json_string (TLS->error)) >= 0);
+    assert (json_object_set_new (res, "result", json_string ("FAIL")) >= 0);
+    assert (json_object_set_new (res, "error_code", json_integer (TLS->error_code)) >= 0);
+    assert (json_object_set_new (res, "error", json_string (TLS->error)) >= 0);
     char *s = json_dumps (res, 0);
     mprintf (ev, "%s\n", s);
     json_decref (res);
@@ -2292,9 +2292,9 @@ void fail_interface (struct tgl_state *TLS, struct in_ev *ev, int error_code, co
   } else {
   #ifdef USE_JSON
     json_t *res = json_object ();
-    assert (json_object_set (res, "result", json_string ("FAIL")) >= 0);
-    assert (json_object_set (res, "error_code", json_integer (error_code)) >= 0);
-    assert (json_object_set (res, "error", json_string (error)) >= 0);
+    assert (json_object_set_new (res, "result", json_string ("FAIL")) >= 0);
+    assert (json_object_set_new (res, "error_code", json_integer (error_code)) >= 0);
+    assert (json_object_set_new (res, "error", json_string (error)) >= 0);
     char *s = json_dumps (res, 0);
     mprintf (ev, "%s\n", s);
     json_decref (res);
@@ -2312,7 +2312,7 @@ void print_success (struct in_ev *ev) {
     } else {
       #ifdef USE_JSON
         json_t *res = json_object ();
-        assert (json_object_set (res, "result", json_string ("SUCCESS")) >= 0);
+        assert (json_object_set_new (res, "result", json_string ("SUCCESS")) >= 0);
         char *s = json_dumps (res, 0);
         mprintf (ev, "%s\n", s);
         json_decref (res);
@@ -2370,7 +2370,7 @@ void print_msg_list_gw (struct tgl_state *TLSR, void *extra, int success, int nu
       int i;
       for (i = num - 1; i >= 0; i--) {
         json_t *a = json_pack_message (ML[i]);
-        assert (json_array_append (res, a) >= 0);        
+        assert (json_array_append_new (res, a) >= 0);        
       }
       char *s = json_dumps (res, 0);
       mprintf (ev, "%s\n", s);
@@ -2436,7 +2436,7 @@ void print_user_list_gw (struct tgl_state *TLSR, void *extra, int success, int n
       int i;
       for (i = num - 1; i >= 0; i--) {
         json_t *a = json_pack_peer (UL[i]->id);
-        assert (json_array_append (res, a) >= 0);
+        assert (json_array_append_new (res, a) >= 0);
       }
       char *s = json_dumps (res, 0);
       mprintf (ev, "%s\n", s);
@@ -2543,6 +2543,11 @@ void print_peer_gw (struct tgl_state *TLSR, void *extra, int success, tgl_peer_t
 void print_filename_gw (struct tgl_state *TLSR, void *extra, int success, const char *name) {
   assert (TLS == TLSR);
   struct in_ev *ev = extra;
+  char* id = NULL;
+  if (ev) {
+    id = print_permanent_msg_id(ev->message_id);
+  }
+  
   if (ev && !--ev->refcnt) {
     free (ev);
     return;
@@ -2554,8 +2559,9 @@ void print_filename_gw (struct tgl_state *TLSR, void *extra, int success, const 
   } else {
     #ifdef USE_JSON
       json_t *res = json_object ();
-      assert (json_object_set (res, "result", json_string (name)) >= 0);
-      assert (json_object_set (res, "event", json_string ("download")) >= 0);
+      assert (json_object_set_new (res, "result", json_string (name)) >= 0);
+      assert (json_object_set_new (res, "message_id", json_string (id)) >= 0);
+      assert (json_object_set_new (res, "event", json_string ("download")) >= 0);
       char *s = json_dumps (res, 0);
       mprintf (ev, "%s\n", s);
       json_decref (res);
@@ -2579,7 +2585,7 @@ void print_string_gw (struct tgl_state *TLSR, void *extra, int success, const ch
   } else {
     #ifdef USE_JSON
       json_t *res = json_object ();
-      assert (json_object_set (res, "result", json_string (name)) >= 0);
+      assert (json_object_set_new (res, "result", json_string (name)) >= 0);
       char *s = json_dumps (res, 0);
       mprintf (ev, "%s\n", s);
       json_decref (res);
@@ -2838,7 +2844,7 @@ void print_dialog_list_gw (struct tgl_state *TLSR, void *extra, int success, int
       int i;
       for (i = size - 1; i >= 0; i--) {
         json_t *a = json_pack_peer (peers[i]);
-        assert (json_array_append (res, a) >= 0);
+        assert (json_array_append_new (res, a) >= 0);
       }
       char *s = json_dumps (res, 0);
       mprintf (ev, "%s\n", s);
@@ -3139,9 +3145,9 @@ void print_peer_updates (struct in_ev *ev, int flags) {
 void json_peer_update (struct in_ev *ev, tgl_peer_t *P, unsigned flags) {
   #ifdef USE_JSON
     json_t *res = json_object ();
-    assert (json_object_set (res, "event", json_string ("updates")) >= 0);
-    assert (json_object_set (res, "peer", json_pack_peer (P->id)) >= 0);
-    assert (json_object_set (res, "updates", json_pack_updates (flags)) >= 0);
+    assert (json_object_set_new (res, "event", json_string ("updates")) >= 0);
+    assert (json_object_set_new (res, "peer", json_pack_peer (P->id)) >= 0);
+    assert (json_object_set_new (res, "updates", json_pack_updates (flags)) >= 0);
     char *s = json_dumps (res, 0);
     mprintf (ev, "%s\n", s);
     json_decref (res);
@@ -3330,7 +3336,7 @@ void print_card_gw (struct tgl_state *TLSR, void *extra, int success, int size, 
       pos += sprintf (q + pos, "%08x%s", card[i], i == size - 1 ? "" : ":");
     }
     json_t *res = json_object ();
-    assert (json_object_set (res, "result", json_string (q)) >= 0);
+    assert (json_object_set_new (res, "result", json_string (q)) >= 0);
     char *s = json_dumps (res, 0);
     mprintf (ev, "%s\n", s);
     json_decref (res);
@@ -3353,7 +3359,7 @@ void callback_extf (struct tgl_state *TLS, void *extra, int success, const char 
   } else {
     #ifdef USE_JSON
     json_t *res = json_object ();
-    assert (json_object_set (res, "result", json_string (buf)) >= 0);
+    assert (json_object_set_new (res, "result", json_string (buf)) >= 0);
     char *s = json_dumps (res, 0);
     mprintf (ev, "%s\n", s);
     json_decref (res);
