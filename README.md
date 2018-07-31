@@ -2,6 +2,8 @@
 
 Command-line interface for [Telegram](http://telegram.org). Uses readline interface.
 
+### Still has memory leak, but is slower than before!!
+
 ### API, Protocol documentation
 
 Documentation for Telegram API is available here: http://core.telegram.org/api
